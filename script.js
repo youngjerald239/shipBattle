@@ -89,6 +89,8 @@ window.addEventListener('load', function() {
             this.x = this.game.width
             this.speedX = Math.random() * -1.5 - 0.5
             this.markedForDeletion = false 
+            this.lives = 5
+            this.score = this.lives
         }
         update(){
             this.x += this.speedX
@@ -97,6 +99,9 @@ window.addEventListener('load', function() {
         draw(context){
             context.fillStyle = 'red'
             context.fillRect(this.x, this.y, this.width, this.height)
+            context.fillStyle = 'black'
+            context.font = '20px Helvetica'
+            context.fillText(this.lives, this.x, this.y)
         }
     }
     class Angler1 extends Enemy {
@@ -121,6 +126,10 @@ window.addEventListener('load', function() {
             this.color = 'yellow'
         }
         draw(context){
+            context.font = this.fontSize + 'px ' + this.fontFamily
+            // score
+            context.fillText('score: ' + this.game.score, 20, 40)
+            //ammo
             context.fillStyle = this.color
             for (let i = 0; i < this.game.ammo; i++){
                 context.fillRect(20 + 5 * i, 50, 3, 20)
@@ -143,6 +152,8 @@ window.addEventListener('load', function() {
             this.ammoTimer = 0
             this.ammoInterval = 500
             this.gameOver = false
+            this.score = 0
+            this.winningScore = 10
         }
         update(deltaTime){
             this.player.update()
@@ -157,6 +168,17 @@ window.addEventListener('load', function() {
                 if (this.checkCollision(this.player, enemy)){
                     enemy.markedForDeletion = true
                 }
+                this.player.projectiles.forEach(projectile => {
+                    if (this.checkCollision(projectile, enemy)){
+                        enemy.lives--
+                        projectile.markedForDeletion = true
+                        if (enemy.lives <= 0){
+                            enemy.markedForDeletion = true
+                            this.score += enemy.score
+                            if (this.score > this.winningScore) this.gameOver = true
+                        }
+                    }
+                })
             })
             this.enemies = this.enemies.filter(enemy => !enemy.markedForDeletion)
             if (this.enemyTimer > this.enemyInterval && !this.gameOver){
