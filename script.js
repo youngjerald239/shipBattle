@@ -35,14 +35,14 @@ window.addEventListener('load', function() {
             this.height = 3
             this.speed = 3
             this.markedForDeletion = false
+            this.image = document.getElementById('projectile')
         }
         update(){
             this.x += this.speed
             // if (this.x > this.width * 0.8) this.markedForDeletion = true
         }
         draw(context){
-            context.fillStyle = 'yellow'
-            ctx.fillRect(this.x, this.y, this.width, this.height)
+            context.drawImage(this.image, this.x, this.y)
         }
     }
     class Particle {
@@ -66,7 +66,7 @@ window.addEventListener('load', function() {
             this.powerUpTimer = 0
             this.powerUpLimit = 10000
         }
-        update(){
+        update(deltaTime){
             if(this.game.keys.includes('w')) this.speedY = -this.maxSpeed
             else if (this.game.keys.includes('s')) this.speedY = this.maxSpeed
             else this.speedY = 0
@@ -82,20 +82,45 @@ window.addEventListener('load', function() {
             } else {
                 this.frameX = 0
             }
+            // power up
+            if (this.powerUp){
+                if(this.powerUpTimer > this.powerUpLimit){
+                    this.powerUpTimer = 0
+                    this.powerUp = false
+                    this.frameY = 0
+                } else {
+                    this.powerUpTimer += deltaTime
+                    this.frameY = 1
+                    this.game.ammo += 0.1
+                }
+            }
         }
         draw(context){
             if (this.game.debug) context.strokeRect(this.x, this.y, this.width, this.height)
-            context.drawImage(this.image, this.frameX * this.width, this.frameY * this.height, this.width, this.height, this.x, this.y, this.width, this.height)
             this.projectiles.forEach(projectile => {
                 projectile.draw(context)
             })
+            context.drawImage(this.image, this.frameX * this.width, this.frameY * this.height, this.width, this.height, this.x, this.y, this.width, this.height)
+            
         }
         shootTop(){
             if (this.game.ammo > 0){
-                this.projectiles.push(new Projectile(this.game, this.x +80, this.y + 30))
+                this.projectiles.push(new Projectile(this.game, this.x + 80, this.y + 30))
+                this.game.ammo--
+            }
+            if (this.powerUp) this.shootBottom()
+        }
+        shootBottom(){
+            if (this.game.ammo > 0){
+                this.projectiles.push(new Projectile(this.game, this.x + 80, this.y + 175))
                 this.game.ammo--
             }
             
+        }
+        enterPowerUp(){
+            this.powerUpTimer = 0
+            this.powerUp = true
+            this.game.ammo = this.game.maxAmmo
         }
     }
     class Enemy {
@@ -218,11 +243,6 @@ window.addEventListener('load', function() {
             context.font = this.fontSize + 'px ' + this.fontFamily
             // score
             context.fillText('score: ' + this.game.score, 20, 40)
-            //ammo
-            
-            for (let i = 0; i < this.game.ammo; i++){
-                context.fillRect(20 + 5 * i, 50, 3, 20)
-            }
             // timer
             const formattedTime = (this.game.gameTime * 0.001).toFixed(1)
             context.fillText('Timer: ' + formattedTime, 20, 100)
@@ -243,6 +263,11 @@ window.addEventListener('load', function() {
                 context.fillText(message1, this.game.width * 0.5, this.game.height * 0.5 - 40)
                 context.font = '25px ' + this.fontFamily
                 context.fillText(message2, this.game.width * 0.5, this.game.height * 0.5 + 40)
+            //ammo
+            if (this.game.player.powerUp) context.fillStyle = 'yellow'
+            for (let i = 0; i < this.game.ammo; i++){
+                context.fillRect(20 + 5 * i, 50, 3, 20)
+                }
             }
             context.restore()
         }
@@ -276,17 +301,20 @@ window.addEventListener('load', function() {
             if (this.gameTime > this.timeLimit) this.gameOver = true 
             this.background.update()
             this.background.layer4.update()
-            this.player.update()
+            this.player.update(deltaTime)
             if (this.ammoTimer > this.ammoInterval){
                 if (this.ammo < this.maxAmmo) this.ammo++
                 this.ammoTimer = 0
             } else {
                 this.ammoTimer += deltaTime
             }
+            //Enemy Collision
             this.enemies.forEach(enemy => {
                 enemy.update()
                 if (this.checkCollision(this.player, enemy)){
                     enemy.markedForDeletion = true
+                    if (enemy.type = 'lucky') this.player.enterPowerUp()
+                    else this.score--
                 }
                 this.player.projectiles.forEach(projectile => {
                     if (this.checkCollision(projectile, enemy)){
